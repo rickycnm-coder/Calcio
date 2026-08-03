@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#10120d">
+<title>Riccardo Moro's Match Analysis — Campo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Inter:wght@500;600;700&family=IBM+Plex+Mono:wght@600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#10120d; --bg-panel:#171a13; --bg-elevated:#1f2318;
+    --line: rgba(237,239,232,0.10); --line-strong: rgba(237,239,232,0.22);
+    --text:#EDEFE8; --text-dim:#9BA294;
+    --green:#6FCF57; --green-dim:#2E4A24;
+    --blue:#4FA3D1;  --blue-dim:#254257;
+    --purple:#9B8AC4; --purple-dim:#382F51;
+    --red:#E27070; --red-dim:#5A2A2A;
+    --font-display:'Oswald', sans-serif;
+    --font-body:'Inter', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html,body{ overscroll-behavior-y:contain; }
+  body{
+    margin:0; background:var(--bg); color:var(--text); font-family:var(--font-body);
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+    min-height:100vh;
+  }
+  .topbar{
+    position:sticky; top:0; z-index:20; background:var(--bg);
+    border-bottom:1px solid var(--line);
+    padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .eyebrow{ font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; color:var(--text-dim); text-transform:uppercase; width:100%; margin-bottom:2px; }
+  .clock{ font-family:var(--font-mono); font-size:26px; font-weight:600; min-width:90px; }
+  .clock.running{ color:var(--green); }
+  .half{ font-family:var(--font-mono); font-size:12px; color:var(--text-dim); border:1px solid var(--line-strong); border-radius:6px; padding:6px 9px; }
+  .topbtn{
+    font-family:var(--font-body); font-weight:600; font-size:13px; border:none; border-radius:8px;
+    padding:10px 14px; cursor:pointer; touch-action:manipulation;
+  }
+  .topbtn.start{ background:var(--green-dim); color:#DFF7D6; margin-left:auto; }
+  .topbtn.half{ background:var(--bg-elevated); color:var(--text); }
+
+  .matchinfo{
+    background:var(--bg); border-bottom:1px solid var(--line); padding:8px 14px 10px;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .matchinfo input{
+    font-family:var(--font-body); font-weight:600; font-size:13px; background:var(--bg-elevated);
+    color:var(--text); border:1px solid var(--line-strong); border-radius:7px; padding:7px 9px;
+    flex:1 1 110px; min-width:0;
+  }
+  .matchinfo input[type=date]{ flex:0 0 128px; color:var(--text-dim); }
+  .matchinfo .vs{ font-family:var(--font-mono); font-size:11px; color:var(--text-dim); flex:0 0 auto; }
+
+  .section{ padding:14px 12px 4px; }
+  .section-title{
+    font-family:var(--font-display); font-size:13px; font-weight:600; letter-spacing:.05em;
+    text-transform:uppercase; margin:10px 2px 8px; display:flex; align-items:center; gap:8px;
+  }
+  .section-title .dot{ width:9px; height:9px; border-radius:50%; }
+  .section-title .note{ font-family:var(--font-body); font-weight:500; font-size:11px; color:var(--text-dim); text-transform:none; letter-spacing:0; }
+
+  .tiles{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  .tile{
+    position:relative; border-radius:14px; padding:16px 12px 12px; min-height:84px;
+    display:flex; flex-direction:column; justify-content:space-between; cursor:pointer;
+    touch-action:manipulation; border:1px solid transparent;
+  }
+  .tile:active{ transform:scale(0.96); }
+  .tile .lbl{ font-size:14.5px; font-weight:700; line-height:1.2; }
+  .tile .cnt{ font-family:var(--font-mono); font-size:22px; font-weight:600; align-self:flex-end; }
+
+  .tile.c-green{ background:var(--green-dim); }
+  .tile.c-green .cnt{ color:var(--green); }
+  .tile.c-blue{ background:var(--blue-dim); }
+  .tile.c-blue .cnt{ color:var(--blue); }
+  .tile.c-purple{ background:var(--purple-dim); }
+  .tile.c-purple .cnt{ color:var(--purple); }
+  .tile.c-red{ background:var(--red-dim); }
+  .tile.c-red .cnt{ color:var(--red); }
+
+  .toast{
+    position:fixed; left:12px; right:12px; bottom: calc(84px + env(safe-area-inset-bottom));
+    background:var(--bg-elevated); border:1px solid var(--line-strong); border-radius:12px;
+    padding:12px 14px; display:flex; align-items:center; gap:10px; z-index:40;
+    transform:translateY(140%); transition:transform .18s ease;
+  }
+  .toast.show{ transform:translateY(0); }
+  .toast .msg{ flex:1; font-size:13.5px; }
+  .toast .msg b{ display:block; font-size:11px; color:var(--text-dim); font-weight:500; margin-bottom:1px; }
+  .toast button{ font-family:var(--font-body); font-weight:700; font-size:13px; background:var(--red-dim); color:#FBDADA; border:none; border-radius:8px; padding:9px 13px; touch-action:manipulation; }
+
+  .bottombar{
+    position:fixed; left:0; right:0; bottom:0; z-index:30; background:var(--bg-panel);
+    border-top:1px solid var(--line); padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+    display:flex; gap:8px; align-items:center;
+  }
+  .undobtn{
+    flex:1; font-family:var(--font-body); font-weight:700; font-size:15px; background:var(--red-dim);
+    color:#FBDADA; border:none; border-radius:10px; padding:14px; touch-action:manipulation;
+  }
+  .menubtn{
+    font-family:var(--font-body); font-weight:600; font-size:13px; background:var(--bg-elevated);
+    color:var(--text-dim); border:none; border-radius:10px; padding:14px 16px; touch-action:manipulation;
+  }
+
+  .sheet-backdrop{
+    position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:50; display:none;
+  }
+  .sheet-backdrop.show{ display:block; }
+  .sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:51; background:var(--bg-panel);
+    border-radius:16px 16px 0 0; padding:16px 16px calc(16px + env(safe-area-inset-bottom));
+    transform:translateY(100%); transition:transform .2s ease; max-height:80vh; overflow-y:auto;
+  }
+  .sheet.show{ transform:translateY(0); }
+  .sheet h2{ font-family:var(--font-display); font-size:17px; margin:0 0 12px; }
+  .sheet button.close{ width:100%; margin-top:14px; padding:12px; border-radius:10px; background:var(--bg-elevated); color:var(--text); border:none; font-weight:600; font-family:var(--font-body); }
+  .sheet .row{ display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .sheet .row .v{ font-family:var(--font-mono); font-weight:600; }
+  .sheet .danger{ color:var(--red); background:var(--red-dim); width:100%; padding:12px; border-radius:10px; border:none; margin-top:10px; font-weight:700; font-family:var(--font-body); }
+  .sheet .exportbtn{ width:100%; padding:13px; border-radius:10px; background:var(--green-dim); color:#DFF7D6; border:none; font-weight:700; font-family:var(--font-body); margin-bottom:8px; }
+
+  @media print{
+    .topbar, .matchinfo, .section, .toast, .bottombar, .sheet-backdrop{ display:none !important; }
+    .sheet{ position:static; transform:none; max-height:none; background:#fff; color:#111; box-shadow:none; padding:0; }
+    .sheet h2{ display:none; }
+    .sheet .row{ color:#111; border-color:#ccc; }
+    .sheet .exportbtn, .sheet .danger, .sheet .close{ display:none !important; }
+    body{ background:#fff; padding-bottom:0; }
+    #printHeader{ display:block !important; font-family:var(--font-body); color:#111; margin-bottom:14px; }
+    #printHeader h1{ font-family:var(--font-display); font-size:22px; margin:0 0 4px; }
+    #printHeader p{ margin:0; color:#555; font-size:13px; }
+  }
+</style>
+</head>
+<body>
+<div id="printHeader" style="display:none;"></div>
+
+<div class="topbar">
+  <span class="eyebrow">Riccardo Moro's Match Analysis — Rilevamento sul campo</span>
+  <div class="clock" id="clock">00:00</div>
+  <div class="half" id="halfLabel">1° tempo</div>
+  <button class="topbtn half" onclick="switchHalf()">Cambia tempo</button>
+  <button class="topbtn start" id="toggleBtn" onclick="toggleClock()">Avvia</button>
+</div>
+
+<div class="matchinfo">
+  <input type="text" id="teamName" placeholder="Nostra squadra">
+  <span class="vs">vs</span>
+  <input type="text" id="oppName" placeholder="Avversario">
+  <input type="date" id="matchDate">
+</div>
+
+<div class="section">
+  <p class="section-title"><span class="dot" style="background:var(--green)"></span>Tiri</p>
+  <div class="tiles" id="grpTiri"></div>
+
+  <p class="section-title"><span class="dot" style="background:var(--blue)"></span>Palle inattive</p>
+  <div class="tiles" id="grpInattive"></div>
+
+  <p class="section-title"><span class="dot" style="background:var(--purple)"></span>Duelli e recuperi</p>
+  <div class="tiles" id="grpDuelli"></div>
+
+  <p class="section-title"><span class="dot" style="background:var(--red)"></span>Disciplina <span class="note">— tocca quando c'è un attimo di calma</span></p>
+  <div class="tiles" id="grpDisciplina"></div>
+</div>
+
+<div class="toast" id="toast">
+  <div class="msg"><b>Registrato</b><span id="toastText"></span></div>
+  <button onclick="undoFromToast()">ANNULLA</button>
+</div>
+
+<div class="bottombar">
+  <button class="undobtn" onclick="undo()">↩ ANNULLA ULTIMO</button>
+  <button class="menubtn" onclick="openSheet()">Riepilogo</button>
+</div>
+
+<div class="sheet-backdrop" id="backdrop" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet">
+  <h2>Riepilogo partita</h2>
+  <div id="sheetRows"></div>
+  <button class="exportbtn" onclick="exportCSV()">Esporta CSV</button>
+  <button class="exportbtn" style="background:var(--blue-dim); color:#DCEEFA;" onclick="exportPDF()">Esporta PDF</button>
+  <button class="danger" onclick="clearAll()">Azzera tutti i dati</button>
+  <button class="close" onclick="loadDemo()" style="margin-top:8px; background:none; color:var(--text-dim); font-weight:500; font-size:12px;">Carica dati di esempio (solo per anteprima)</button>
+  <button class="close" onclick="closeSheet()">Chiudi</button>
+</div>
+
+<script>
+const categories = [
+  {id:'tiro_d_in',  label:'Tiro dentro area — in porta',  group:'tiri', color:'c-green'},
+  {id:'tiro_d_out', label:'Tiro dentro area — fuori',      group:'tiri', color:'c-green'},
+  {id:'tiro_f_in',  label:'Tiro fuori area — in porta',    group:'tiri', color:'c-green'},
+  {id:'tiro_f_out', label:'Tiro fuori area — fuori',       group:'tiri', color:'c-green'},
+
+  {id:'corner',     label:'Corner',                group:'inattive', color:'c-blue'},
+  {id:'punizione',  label:'Punizione 3/4 in area',  group:'inattive', color:'c-blue'},
+  {id:'fuorigioco', label:'Fuorigioco',             group:'inattive', color:'c-blue'},
+  {id:'rigore',     label:'Rigore',                 group:'inattive', color:'c-blue'},
+
+  {id:'palla_riconquistata', label:'Palla riconquistata',    group:'duelli', color:'c-purple'},
+  {id:'palla_persa',         label:'Palla persa',            group:'duelli', color:'c-purple'},
+  {id:'duello_vinto',        label:'Duello vinto',           group:'duelli', color:'c-purple'},
+  {id:'duello_perso',        label:'Duello perso',           group:'duelli', color:'c-purple'},
+
+  {id:'ammonizione', label:'Ammonizione',  group:'disciplina', color:'c-red'},
+  {id:'fallo',        label:'Fallo',        group:'disciplina', color:'c-red'},
+  {id:'gol',           label:'Gol',          group:'disciplina', color:'c-red'},
+  {id:'espulsione',    label:'Espulsione',   group:'disciplina', color:'c-red'},
+  {id:'sostituzione',  label:'Sostituzione', group:'disciplina', color:'c-red'},
+];
+
+let events = [];
+let eventIdSeq = 1;
+let half = 1, running = false, startPerf = null;
+let elapsedByHalf = {1:0, 2:0};
+let toastTimer = null;
+let lastToastEventId = null;
+
+function fmt(sec){
+  sec = Math.max(0, Math.round(sec));
+  return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
+}
+function currentSeconds(){
+  let base = elapsedByHalf[half];
+  if(running) base += (performance.now()-startPerf)/1000;
+  return base;
+}
+function tick(){ document.getElementById('clock').textContent = fmt(currentSeconds()); requestAnimationFrame(tick); }
+requestAnimationFrame(tick);
+
+function toggleClock(){
+  if(running){ elapsedByHalf[half] = currentSeconds(); running = false; }
+  else { startPerf = performance.now(); running = true; }
+  document.getElementById('clock').classList.toggle('running', running);
+  document.getElementById('toggleBtn').textContent = running ? 'Pausa' : 'Avvia';
+}
+function switchHalf(){
+  if(running) toggleClock();
+  half = half === 1 ? 2 : 1;
+  document.getElementById('halfLabel').textContent = half === 1 ? '1° tempo' : '2° tempo';
+}
+
+function renderTiles(){
+  const groups = { tiri:document.getElementById('grpTiri'), inattive:document.getElementById('grpInattive'),
+                    duelli:document.getElementById('grpDuelli'), disciplina:document.getElementById('grpDisciplina') };
+  Object.values(groups).forEach(g => g.innerHTML = '');
+  categories.forEach(cat => {
+    const t = document.createElement('div');
+    t.className = 'tile ' + cat.color;
+    t.onclick = () => logEvent(cat.id);
+    t.innerHTML = `<span class="lbl">${cat.label}</span><span class="cnt" id="cnt-${cat.id}">0</span>`;
+    groups[cat.group].appendChild(t);
+  });
+}
+function countOf(id){ return events.filter(e => e.catId === id).length; }
+function renderCounts(){ categories.forEach(c => { const el = document.getElementById('cnt-'+c.id); if(el) el.textContent = countOf(c.id); }); }
+
+function logEvent(catId){
+  const cat = categories.find(c => c.id === catId);
+  const ev = { id:eventIdSeq++, catId:cat.id, label:cat.label, group:cat.group, half, time:currentSeconds() };
+  events.push(ev);
+  renderCounts();
+  showToast(ev);
+  if(navigator.vibrate) navigator.vibrate(15);
+}
+function showToast(ev){
+  clearTimeout(toastTimer);
+  lastToastEventId = ev.id;
+  document.getElementById('toastText').textContent = `${ev.label} — ${ev.half}T ${fmt(ev.time)}`;
+  const toast = document.getElementById('toast');
+  toast.classList.add('show');
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+}
+function undoFromToast(){
+  events = events.filter(e => e.id !== lastToastEventId);
+  renderCounts();
+  document.getElementById('toast').classList.remove('show');
+}
+function undo(){
+  events.pop();
+  renderCounts();
+  document.getElementById('toast').classList.remove('show');
+}
+function clearAll(){
+  if(!confirm('Azzerare tutti i dati registrati?')) return;
+  events = [];
+  renderCounts();
+  closeSheet();
+}
+
+function openSheet(){
+  const rows = categories.map(c => `<div class="row"><span>${c.label}</span><span class="v">${countOf(c.id)}</span></div>`).join('');
+  document.getElementById('sheetRows').innerHTML = rows + `<div class="row"><span>Eventi totali</span><span class="v">${events.length}</span></div>`;
+  document.getElementById('backdrop').classList.add('show');
+  document.getElementById('sheet').classList.add('show');
+}
+function closeSheet(){
+  document.getElementById('backdrop').classList.remove('show');
+  document.getElementById('sheet').classList.remove('show');
+}
+
+function matchInfo(){
+  const team = document.getElementById('teamName').value.trim() || 'Nostra squadra';
+  const opp = document.getElementById('oppName').value.trim() || 'Avversario';
+  const date = document.getElementById('matchDate').value || '';
+  return {team, opp, date};
+}
+function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'na'; }
+
+function exportCSV(){
+  const info = matchInfo();
+  const rows = [['Squadra', info.team], ['Avversario', info.opp], ['Data', info.date], []];
+  rows.push(['Tempo di gioco','Semitempo','Categoria','Gruppo']);
+  events.forEach(e => rows.push([fmt(e.time), e.half+'T', e.label, e.group]));
+  rows.push([]);
+  rows.push(['Statistica','Valore']);
+  categories.forEach(c => rows.push([c.label, countOf(c.id)]));
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `match-events-${slug(info.team)}-vs-${slug(info.opp)}-${info.date||'senza-data'}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+function exportPDF(){
+  const info = matchInfo();
+  const dateLabel = info.date ? new Date(info.date+'T12:00:00').toLocaleDateString('it-IT', {day:'2-digit', month:'long', year:'numeric'}) : 'data non indicata';
+  document.getElementById('printHeader').innerHTML =
+    `<h1>${info.team} vs ${info.opp}</h1><p>${dateLabel}</p>`;
+  window.print();
+}
+
+function loadDemo(){
+  if(events.length && !confirm('Sostituire i dati attuali con dati di esempio?')) return;
+  events = [];
+  eventIdSeq = 1;
+  const demo = {
+    tiro_d_in:3, tiro_d_out:2, tiro_f_in:1, tiro_f_out:4,
+    corner:5, punizione:2, fuorigioco:3, rigore:1,
+    palla_riconquistata:14, palla_persa:11, duello_vinto:9, duello_perso:7,
+    ammonizione:2, fallo:8, gol:2, espulsione:0, sostituzione:3
+  };
+  Object.entries(demo).forEach(([id, n]) => {
+    const cat = categories.find(c => c.id === id);
+    for(let i=0;i<n;i++){
+      const h = Math.random() < 0.5 ? 1 : 2;
+      events.push({ id:eventIdSeq++, catId:cat.id, label:cat.label, group:cat.group, half:h, time: Math.floor(Math.random()*2700) });
+    }
+  });
+  renderCounts();
+  openSheet();
+}
+
+renderTiles();
+renderCounts();
+</script>
+</body>
+</html>
