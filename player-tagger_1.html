@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#10120d">
+<title>Riccardo Moro's Match Analysis — Giocatori</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#10120d; --bg-panel:#171a13; --bg-elevated:#1f2318; --bg-elevated-2:#262b1c;
+    --line: rgba(237,239,232,0.10); --line-strong: rgba(237,239,232,0.22);
+    --text:#EDEFE8; --text-dim:#9BA294; --text-faint:#5C6154;
+    --gold:#D9C15C; --gold-dim:#4A4324; --gold-bg:rgba(217,193,92,0.08);
+    --purple:#9B8AC4; --purple-dim:#382F51; --purple-bg:rgba(155,138,196,0.08);
+    --green:#6FCF57; --red:#E27070;
+    --font-display:'Oswald', sans-serif; --font-body:'Inter', sans-serif; --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:var(--font-body); overflow-x:hidden; }
+
+  .topbar{
+    position:sticky; top:0; z-index:50; background:var(--bg); border-bottom:1px solid var(--line);
+    padding:12px 16px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  }
+  .eyebrow{ font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; color:var(--text-faint); text-transform:uppercase; }
+  h1{ font-family:var(--font-display); font-weight:600; font-size:18px; margin:0; }
+  .titlewrap{ display:flex; flex-direction:column; gap:1px; margin-right:8px; }
+  .matchinfo{ display:flex; align-items:center; gap:6px; }
+  .matchinfo input{ font-family:var(--font-body); font-weight:600; font-size:12.5px; background:var(--bg-elevated); color:var(--text); border:1px solid var(--line-strong); border-radius:6px; padding:6px 8px; width:120px; }
+  .matchinfo input[type=date]{ width:118px; color:var(--text-dim); }
+  .matchinfo .vs{ font-family:var(--font-mono); font-size:10px; color:var(--text-dim); }
+  .spacer{ flex:1; }
+  button{ font-family:var(--font-body); font-weight:600; font-size:12.5px; background:var(--bg-elevated); color:var(--text); border:1px solid var(--line-strong); border-radius:7px; padding:9px 13px; cursor:pointer; touch-action:manipulation; }
+  button:hover{ background:var(--bg-elevated-2); }
+  button.primary{ background:var(--gold-dim); border-color:var(--gold); color:#F5EDC8; }
+  button.danger{ background:#5A2A2A; border-color:var(--red); color:#FBDADA; }
+
+  .tablewrap{ overflow:auto; height:calc(100vh - 58px); padding-bottom:80px; }
+  table{ border-collapse:separate; border-spacing:0; min-width:980px; }
+  thead th{
+    position:sticky; top:0; z-index:30; background:var(--bg-panel); border-bottom:1px solid var(--line-strong);
+    font-family:var(--font-display); font-size:11.5px; text-transform:uppercase; letter-spacing:.03em;
+    font-weight:600; padding:10px 8px; text-align:center; white-space:nowrap;
+  }
+  thead th.playercol{ position:sticky; left:0; top:0; z-index:35; text-align:left; padding-left:16px; background:var(--bg-panel); min-width:220px; }
+  thead th.g-passaggi{ background:var(--gold-bg); color:var(--gold); }
+  thead th.g-duelli{ background:var(--purple-bg); color:var(--purple); }
+  thead th.timecol{ min-width:96px; }
+  thead th .sub{ display:block; font-family:var(--font-body); font-weight:500; font-size:9.5px; text-transform:none; color:var(--text-dim); margin-top:1px; }
+
+  tbody td{ border-bottom:1px solid var(--line); padding:0; text-align:center; }
+  tbody tr:hover td{ background:rgba(255,255,255,0.02); }
+  td.playercell{
+    position:sticky; left:0; z-index:20; background:var(--bg);
+    padding:0 10px 0 6px; text-align:left; min-width:220px; white-space:nowrap;
+  }
+  tbody tr:hover td.playercell{ background:#191c14; }
+  .playerrow{ display:flex; align-items:center; gap:6px; padding:9px 0; }
+  .draghandle{ cursor:grab; color:var(--text-faint); font-size:15px; padding:4px 2px; touch-action:none; user-select:none; }
+  .draghandle:active{ cursor:grabbing; }
+  .rownum{
+    font-family:var(--font-mono); font-weight:700; font-size:12px; color:var(--gold);
+    background:var(--gold-dim); border-radius:5px; padding:3px 0; min-width:24px; text-align:center; flex-shrink:0;
+  }
+  .playername{ font-size:13px; font-weight:600; flex:1; }
+  .delbtn{ background:none; border:none; color:var(--text-faint); font-size:14px; padding:2px 6px; cursor:pointer; opacity:0; }
+  .playerrow:hover .delbtn{ opacity:1; }
+  .delbtn:hover{ color:var(--red); }
+
+  .tapcell{
+    width:78px; height:46px; cursor:pointer; touch-action:manipulation; user-select:none;
+    font-family:var(--font-mono); font-size:16px; font-weight:600; color:var(--text-dim);
+  }
+  .tapcell:active{ background:var(--bg-elevated-2) !important; }
+  .tapcell.has-count{ color:var(--text); }
+  td.g-passaggi{ background:rgba(217,193,92,0.04); }
+  td.g-duelli{ background:rgba(155,138,196,0.04); }
+  .tapcell.pos.has-count{ color:var(--green); }
+  .tapcell.neg.has-count{ color:var(--red); }
+
+  .timecell input{
+    width:80px; text-align:center; font-family:var(--font-mono); font-size:13px; background:var(--bg-elevated);
+    color:var(--text); border:1px solid var(--line-strong); border-radius:6px; padding:7px 4px; margin:6px 0;
+  }
+
+  .benchdivider td{ padding:0; border-bottom:none; }
+  .benchdivider .line{
+    display:flex; align-items:center; gap:10px; padding:6px 16px; color:var(--text-faint);
+    font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  }
+  .benchdivider .line::after{ content:''; flex:1; height:1px; background:var(--line-strong); }
+
+  .addrow{ display:flex; gap:8px; align-items:center; padding:14px 16px 40px; }
+  .addrow input{ font-family:var(--font-body); font-size:13px; background:var(--bg-elevated); color:var(--text); border:1px solid var(--line-strong); border-radius:7px; padding:9px 11px; width:220px; }
+
+  .sheet-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:80; display:none; }
+  .sheet-backdrop.show{ display:block; }
+  .sheet{
+    position:fixed; left:3%; right:3%; top:5%; bottom:5%; z-index:81; background:var(--bg-panel);
+    border-radius:14px; border:1px solid var(--line-strong); display:none; flex-direction:column; overflow:hidden;
+  }
+  .sheet.show{ display:flex; }
+  .sheet-head{ display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid var(--line); }
+  .sheet-head h2{ font-family:var(--font-display); font-size:17px; margin:0; flex:1; }
+  .sheet-body{ overflow:auto; flex:1; }
+  .sumtable{ border-collapse:collapse; width:100%; min-width:1100px; }
+  .sumtable th{ position:sticky; top:0; background:var(--bg-elevated); font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-dim); padding:9px 10px; text-align:center; border-bottom:1px solid var(--line-strong); white-space:nowrap; }
+  .sumtable th:first-child{ text-align:left; }
+  .sumtable td{ padding:8px 10px; text-align:center; font-family:var(--font-mono); font-size:12.5px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  .sumtable td:first-child{ text-align:left; font-family:var(--font-body); font-weight:600; font-size:13px; }
+  .sumtable td.computed{ color:var(--gold); }
+
+  @media print{
+    body *{ visibility:hidden; }
+    #printHeader, #printHeader *{ visibility:visible; }
+    #printHeader{ display:block !important; position:absolute; left:0; top:0; width:100%; }
+    .print-doc{ font-family:'Inter', sans-serif; color:#111; }
+    .print-doc h1{ font-family:var(--font-display); font-size:20px; margin:0 0 2px; }
+    .print-doc .sub{ color:#555; font-size:12px; margin:0 0 14px; }
+    .print-doc table{ border-collapse:collapse; width:100%; }
+    .print-doc th, .print-doc td{ border:1px solid #999; padding:5px 7px; font-size:10.5px; text-align:center; }
+    .print-doc th{ background:#eee; text-transform:uppercase; }
+    .print-doc td:first-child, .print-doc th:first-child{ text-align:left; }
+  }
+</style>
+</head>
+<body>
+
+<div id="printHeader" style="display:none;"></div>
+
+<div class="topbar">
+  <div class="titlewrap">
+    <span class="eyebrow">Riccardo Moro's Match Analysis</span>
+    <h1>Rilevazione giocatori</h1>
+  </div>
+  <div class="matchinfo">
+    <input type="text" id="teamName" placeholder="Nostra squadra">
+    <span class="vs">vs</span>
+    <input type="text" id="oppName" placeholder="Avversario">
+    <input type="date" id="matchDate">
+  </div>
+  <div class="spacer"></div>
+  <button onclick="undo()">↩ Annulla ultimo tocco</button>
+  <button class="primary" onclick="openSummary()">Riepilogo</button>
+</div>
+
+<div class="tablewrap">
+  <table>
+    <thead>
+      <tr>
+        <th class="playercol">Giocatore</th>
+        <th class="g-passaggi">Passaggio<span class="sub">giusto</span></th>
+        <th class="g-passaggi">Passaggio<span class="sub">sbagliato</span></th>
+        <th class="g-duelli">Palla<span class="sub">recuperata</span></th>
+        <th class="g-duelli">Palla<span class="sub">persa</span></th>
+        <th class="g-duelli">Duello<span class="sub">vinto</span></th>
+        <th class="g-duelli">Duello<span class="sub">perso</span></th>
+        <th class="timecol">Tempo<span class="sub">minuti in campo</span></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="addrow">
+    <input type="text" id="newPlayerName" placeholder="Aggiungi giocatore (es. COGNOME NOME)">
+    <button onclick="addPlayer()">+ Aggiungi</button>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="backdrop" onclick="closeSummary()"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-head">
+    <h2>Riepilogo giocatori</h2>
+    <button onclick="exportCSV()">Esporta CSV</button>
+    <button onclick="exportPDF()">Esporta PDF</button>
+    <button onclick="closeSummary()">Chiudi</button>
+  </div>
+  <div class="sheet-body">
+    <table class="sumtable" id="sumtable"></table>
+  </div>
+</div>
+
+<script>
+const CATS = [
+  {id:'pass_ok',  label:'Passaggio giusto',    group:'g-passaggi', sign:'pos'},
+  {id:'pass_no',  label:'Passaggio sbagliato', group:'g-passaggi', sign:'neg'},
+  {id:'rec',      label:'Palla recuperata',    group:'g-duelli',   sign:'pos'},
+  {id:'persa',    label:'Palla persa',         group:'g-duelli',   sign:'neg'},
+  {id:'duello_v', label:'Duello vinto',        group:'g-duelli',   sign:'pos'},
+  {id:'duello_p', label:'Duello perso',        group:'g-duelli',   sign:'neg'},
+];
+
+const DEFAULT_ROSTER = [
+  'BALDAN MATTEO','BALLARIN TOMMASO','BARATTO ALESSIO','BARBIERO MARCO','BELLON ALBERTO',
+  'BERGAMASCO RICCARDO','BERTUOLO NICOLÒ','BOSCO GIOVANNI','CAPOZZI TOMMASO','COPPOLA ALESSANDRO',
+  'DI GIUSEPPE CHRISTIAN','DONGMO FERNAND','GIORDANI LORIS','GJOKA KEVIN','GUARNIERI GIANFILIPPO',
+  'JAMMEH ANFAL','LACERTI ALESSANDRO','MONTECCHIO MATTEO','OPREAN COSMIN','PITTARELLO GIOVANNI',
+  'SABBION GIOVANNI','SEGALINA FILIPPO','TESSARI ANDREA','TOGNON ALESSANDRO','VERONESE ALESSANDRO',
+  'YMERAJ DANIEL','IPPOLITO LEONARDO','ALIEU BAYIE','EMMANUEL ABRAHAM',"BAU'",'SAITI'
+];
+
+let players = DEFAULT_ROSTER.map((name, i) => ({ id: 'p'+i, name }));
+let nextPlayerId = players.length;
+let taps = [];
+let tapIdSeq = 1;
+let timeByPlayer = {};
+
+function countOf(playerId, catId){ return taps.filter(t => t.playerId===playerId && t.catId===catId).length; }
+
+function logTap(playerId, catId){
+  taps.push({ id: tapIdSeq++, playerId, catId });
+  renderCounts();
+}
+function undo(){ taps.pop(); renderCounts(); }
+
+function renderRows(){
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  players.forEach((p, idx) => {
+    if(idx === 11){
+      const tr = document.createElement('tr');
+      tr.className = 'benchdivider';
+      tr.innerHTML = `<td colspan="8"><div class="line">Panchina</div></td>`;
+      tbody.appendChild(tr);
+    }
+    const tr = document.createElement('tr');
+    tr.dataset.playerId = p.id;
+    let cellsHtml = `<td class="playercell">
+      <div class="playerrow">
+        <span class="rownum">${idx+1}</span>
+        <span class="draghandle" data-pid="${p.id}">⋮⋮</span>
+        <span class="playername">${p.name}</span>
+        <button class="delbtn" onclick="removePlayer('${p.id}')" aria-label="Rimuovi">&times;</button>
+      </div>
+    </td>`;
+    CATS.forEach(cat => {
+      cellsHtml += `<td class="${cat.group}"><div class="tapcell ${cat.sign}" data-pid="${p.id}" data-cat="${cat.id}" id="cell-${p.id}-${cat.id}">0</div></td>`;
+    });
+    cellsHtml += `<td class="timecell"><input type="number" min="0" value="${timeByPlayer[p.id]||0}" onchange="setTime('${p.id}', this.value)"></td>`;
+    tr.innerHTML = cellsHtml;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('.tapcell').forEach(cell => {
+    cell.onclick = () => logTap(cell.dataset.pid, cell.dataset.cat);
+  });
+  attachDrag();
+  renderCounts();
+}
+function renderCounts(){
+  players.forEach(p => {
+    CATS.forEach(cat => {
+      const el = document.getElementById(`cell-${p.id}-${cat.id}`);
+      if(!el) return;
+      const n = countOf(p.id, cat.id);
+      el.textContent = n;
+      el.classList.toggle('has-count', n > 0);
+    });
+  });
+}
+function setTime(pid, val){ timeByPlayer[pid] = Math.max(0, parseInt(val)||0); }
+function addPlayer(){
+  const input = document.getElementById('newPlayerName');
+  const name = input.value.trim().toUpperCase();
+  if(!name) return;
+  players.push({ id:'p'+(nextPlayerId++), name });
+  input.value = '';
+  renderRows();
+}
+function removePlayer(pid){
+  if(!confirm('Rimuovere questo giocatore e tutti i suoi dati?')) return;
+  players = players.filter(p => p.id !== pid);
+  taps = taps.filter(t => t.playerId !== pid);
+  delete timeByPlayer[pid];
+  renderRows();
+}
+
+// --- Drag & drop reorder (pointer events, touch + mouse) ---
+let dragState = null;
+function attachDrag(){
+  document.querySelectorAll('.draghandle').forEach(h => {
+    h.onpointerdown = (e) => {
+      e.preventDefault();
+      const row = e.target.closest('tr');
+      dragState = { pid: h.dataset.pid, startY: e.clientY, row };
+      row.style.opacity = '0.5';
+      document.onpointermove = onDragMove;
+      document.onpointerup = onDragEnd;
+    };
+  });
+}
+function onDragMove(e){
+  if(!dragState) return;
+  const allRows = [...document.querySelectorAll('#tbody tr')].filter(r => r.dataset.playerId);
+  const y = e.clientY;
+  for(const r of allRows){
+    if(r.dataset.playerId === dragState.pid) continue;
+    const rect = r.getBoundingClientRect();
+    const mid = rect.top + rect.height/2;
+    if(y > rect.top && y < rect.bottom){
+      const fromIdx = players.findIndex(p => p.id === dragState.pid);
+      const toIdx = players.findIndex(p => p.id === r.dataset.playerId);
+      if(fromIdx === -1 || toIdx === -1) return;
+      const [moved] = players.splice(fromIdx, 1);
+      players.splice(toIdx, 0, moved);
+      renderRows();
+      break;
+    }
+  }
+}
+function onDragEnd(){
+  document.onpointermove = null;
+  document.onpointerup = null;
+  dragState = null;
+}
+
+// --- Summary ---
+function computeStats(p){
+  const c = {};
+  CATS.forEach(cat => c[cat.id] = countOf(p.id, cat.id));
+  const tocchi = CATS.reduce((s,cat) => s + c[cat.id], 0);
+  const tempoMin = timeByPlayer[p.id] || 0;
+  const tempoSec = tempoMin * 60;
+  const freq = tocchi > 0 ? (tempoSec/tocchi) : null;
+  const passTot = c.pass_ok + c.pass_no;
+  const precPass = passTot > 0 ? (c.pass_ok/passTot*100) : null;
+  const delta = c.rec - c.persa;
+  const negTot = c.pass_no + c.persa + c.duello_p;
+  const transNeg = tocchi > 0 ? (negTot/tocchi*100) : null;
+  return {c, tocchi, tempoMin, tempoSec, freq, precPass, delta, transNeg};
+}
+function fmtNum(v, suffix=''){ return v===null ? '—' : (Math.round(v*10)/10)+suffix; }
+
+function openSummary(){
+  const table = document.getElementById('sumtable');
+  let html = `<tr>
+    <th>N.</th><th>Giocatore</th><th>Pass. giusti</th><th>Pass. sbagliati</th><th>Recuperate</th><th>Perse</th>
+    <th>Duelli vinti</th><th>Duelli persi</th><th>Tempo (min)</th>
+    <th>Tocchi</th><th>Frequenza (s/tocco)</th><th>% pass. giusti</th><th>Delta palle</th><th>Transizione neg. %</th>
+  </tr>`;
+  players.forEach((p, idx) => {
+    const s = computeStats(p);
+    html += `<tr>
+      <td class="computed">${idx+1}</td>
+      <td>${p.name}</td>
+      <td>${s.c.pass_ok}</td><td>${s.c.pass_no}</td><td>${s.c.rec}</td><td>${s.c.persa}</td>
+      <td>${s.c.duello_v}</td><td>${s.c.duello_p}</td><td>${s.tempoMin}</td>
+      <td class="computed">${s.tocchi}</td>
+      <td class="computed">${fmtNum(s.freq,'s')}</td>
+      <td class="computed">${fmtNum(s.precPass,'%')}</td>
+      <td class="computed">${s.delta>0?'+':''}${s.delta}</td>
+      <td class="computed">${fmtNum(s.transNeg,'%')}</td>
+    </tr>`;
+  });
+  table.innerHTML = html;
+  document.getElementById('backdrop').classList.add('show');
+  document.getElementById('sheet').classList.add('show');
+}
+function closeSummary(){
+  document.getElementById('backdrop').classList.remove('show');
+  document.getElementById('sheet').classList.remove('show');
+}
+
+function matchInfo(){
+  const team = document.getElementById('teamName').value.trim() || 'Nostra squadra';
+  const opp = document.getElementById('oppName').value.trim() || 'Avversario';
+  const date = document.getElementById('matchDate').value || '';
+  return {team, opp, date};
+}
+function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'na'; }
+
+function exportCSV(){
+  const info = matchInfo();
+  const rows = [['Squadra', info.team], ['Avversario', info.opp], ['Data', info.date], []];
+  rows.push(['N.','Giocatore','Passaggi giusti','Passaggi sbagliati','Palle recuperate','Palle perse',
+    'Duelli vinti','Duelli persi','Tempo (min)','Tocchi palla','Frequenza (s/tocco)','% passaggi giusti','Delta palle','Transizione negativa %']);
+  players.forEach((p, idx) => {
+    const s = computeStats(p);
+    rows.push([idx+1, p.name, s.c.pass_ok, s.c.pass_no, s.c.rec, s.c.persa, s.c.duello_v, s.c.duello_p, s.tempoMin,
+      s.tocchi, s.freq===null?'':Math.round(s.freq*10)/10, s.precPass===null?'':Math.round(s.precPass*10)/10,
+      s.delta, s.transNeg===null?'':Math.round(s.transNeg*10)/10]);
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `giocatori-${slug(info.team)}-vs-${slug(info.opp)}-${info.date||'senza-data'}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportPDF(){
+  const info = matchInfo();
+  const dateLabel = info.date ? new Date(info.date+'T12:00:00').toLocaleDateString('it-IT', {day:'2-digit', month:'long', year:'numeric'}) : 'data non indicata';
+  let rows = '';
+  players.forEach((p, idx) => {
+    const s = computeStats(p);
+    rows += `<tr>
+      <td>${idx+1}</td><td>${p.name}</td><td>${s.c.pass_ok}</td><td>${s.c.pass_no}</td><td>${s.c.rec}</td><td>${s.c.persa}</td>
+      <td>${s.c.duello_v}</td><td>${s.c.duello_p}</td><td>${s.tempoMin}</td><td>${s.tocchi}</td>
+      <td>${fmtNum(s.freq)}</td><td>${fmtNum(s.precPass)}</td><td>${s.delta>0?'+':''}${s.delta}</td><td>${fmtNum(s.transNeg)}</td>
+    </tr>`;
+  });
+  document.getElementById('printHeader').innerHTML = `
+    <div class="print-doc">
+      <h1>${info.team} vs ${info.opp}</h1>
+      <p class="sub">${dateLabel} — Rilevazione individuale giocatori</p>
+      <table>
+        <tr><th>N.</th><th>Giocatore</th><th>P.giusti</th><th>P.sbagliati</th><th>Recuperate</th><th>Perse</th>
+          <th>Duelli V</th><th>Duelli P</th><th>Tempo (min)</th><th>Tocchi</th><th>Freq. (s)</th><th>%Pass</th><th>Delta</th><th>Trans. neg. %</th></tr>
+        ${rows}
+      </table>
+    </div>`;
+  window.print();
+}
+
+renderRows();
+</script>
+</body>
+</html>
