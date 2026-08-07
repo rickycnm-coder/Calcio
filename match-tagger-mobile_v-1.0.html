@@ -1,3 +1,6 @@
+Match tagger
+
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -15,7 +18,7 @@
     --bg:#10120d; --bg-panel:#171a13; --bg-elevated:#1f2318;
     --line: rgba(237,239,232,0.10); --line-strong: rgba(237,239,232,0.22);
     --text:#EDEFE8; --text-dim:#9BA294;
-    --green:#6FCF57; --blue:#4FA3D1; --purple:#9B8AC4; --gold:#D9C15C;
+    --green:#6FCF57; --blue:#4FA3D1; --purple:#9B8AC4; --gold:#D9C15C; --teal:#5BB3A6;
     --casa-bg:#FFFFFF; --casa-text:#C8102E; --casa-border:#C8102E;
     --ospiti-bg:#232C3B; --ospiti-text:#F2F4F7; --ospiti-border:#3E4C63;
     --red-dim:#5A2A2A;
@@ -83,21 +86,22 @@
   }
   .tile2.grp-tiri{ border-top-color:var(--green); }
   .tile2.grp-inattive{ border-top-color:var(--blue); }
-  .tile2.grp-duelli{ border-top-color:var(--purple); }
   .tile2.grp-disciplina{ border-top-color:var(--gold); }
+  .tile2.grp-gol{ border-top-color:var(--purple); }
+  .tile2.grp-sostituzione{ border-top-color:var(--teal); }
 
   .tile2-label{
     background:var(--bg-panel); color:var(--text); font-size:13px; font-weight:700;
     text-align:center; padding:7px 8px; text-transform:uppercase; letter-spacing:.02em;
   }
   .tile2-halves{ display:flex; }
-  .half{
+  .teamhalf{
     flex:1; display:flex; align-items:center; justify-content:center; gap:8px;
     padding:14px 8px; cursor:pointer; touch-action:manipulation; min-height:56px;
   }
-  .half:active{ filter:brightness(0.92); }
-  .half.casa{ background:var(--casa-bg); color:var(--casa-text); border-right:1.5px solid var(--casa-border); }
-  .half.ospiti{ background:var(--ospiti-bg); color:var(--ospiti-text); }
+  .teamhalf:active{ filter:brightness(0.92); }
+  .teamhalf.casa{ background:var(--casa-bg); color:var(--casa-text); border-right:1.5px solid var(--casa-border); }
+  .teamhalf.ospiti{ background:var(--ospiti-bg); color:var(--ospiti-text); }
   .halflbl{ font-family:var(--font-mono); font-size:10px; letter-spacing:.06em; opacity:0.7; text-transform:uppercase; }
   .halfcnt{ font-family:var(--font-mono); font-size:22px; font-weight:700; min-width:22px; text-align:center; }
 
@@ -176,7 +180,7 @@
   <span class="fixedteam">Monselice</span>
   <span class="vs">vs</span>
   <input type="text" id="oppName" placeholder="Avversario" oninput="updateTeamLabels()">
-  <input type="date" id="matchDate">
+  <input type="date" id="matchDate" onchange="saveState()">
 </div>
 
 <div class="legend">
@@ -191,11 +195,14 @@
   <p class="section-title"><span class="dot" style="background:var(--blue)"></span>Palle inattive</p>
   <div id="grpInattive"></div>
 
-  <p class="section-title"><span class="dot" style="background:var(--purple)"></span>Duelli e recuperi</p>
-  <div id="grpDuelli"></div>
-
   <p class="section-title"><span class="dot" style="background:var(--gold)"></span>Disciplina</p>
   <div id="grpDisciplina"></div>
+
+  <p class="section-title"><span class="dot" style="background:var(--purple)"></span>Gol</p>
+  <div id="grpGol"></div>
+
+  <p class="section-title"><span class="dot" style="background:var(--teal)"></span>Sostituzioni</p>
+  <div id="grpSostituzione"></div>
 </div>
 
 <div class="bottombar">
@@ -214,6 +221,7 @@
   <h2>Riepilogo partita</h2>
   <table class="sumtable" id="sumtable"></table>
   <button class="exportbtn" onclick="exportCSV()">Esporta CSV</button>
+  <button class="exportbtn" style="background:#1D6F42; color:#DDF3E4;" onclick="exportExcel()">Esporta Excel</button>
   <button class="exportbtn" style="background:#254257; color:#DCEEFA;" onclick="exportPDF()">Esporta PDF</button>
   <button class="danger" onclick="clearAll()">Azzera tutti i dati</button>
   <button class="close" onclick="loadDemo()" style="margin-top:8px; background:none; color:var(--text-dim); font-weight:500; font-size:12px;">Carica dati di esempio (solo per anteprima)</button>
@@ -227,23 +235,23 @@ const categories = [
   {id:'tiro_f_in',  label:'Tiro fuori area — in porta',    group:'tiri'},
   {id:'tiro_f_out', label:'Tiro fuori area — fuori',       group:'tiri'},
 
-  {id:'corner',     label:'Corner',                group:'inattive'},
-  {id:'punizione',  label:'Punizione 3/4 in area',  group:'inattive'},
-  {id:'fuorigioco', label:'Fuorigioco',             group:'inattive'},
-  {id:'rigore',     label:'Rigore',                 group:'inattive'},
+  {id:'corner',            label:'Corner',                 group:'inattive'},
+  {id:'punizione',         label:'Punizione 3/4 in area',  group:'inattive'},
+  {id:'fuorigioco',        label:'Fuorigioco',             group:'inattive'},
+  {id:'rigore',            label:'Rigore',                 group:'inattive'},
+  {id:'rimessa_dal_fondo', label:'Rimessa dal fondo',      group:'inattive'},
 
-  {id:'palla_riconquistata', label:'Palla riconquistata',    group:'duelli'},
-  {id:'palla_persa',         label:'Palla persa',            group:'duelli'},
-  {id:'duello_vinto',        label:'Duello vinto',           group:'duelli'},
-  {id:'duello_perso',        label:'Duello perso',           group:'duelli'},
+  {id:'fallo',       label:'Fallo',       group:'disciplina'},
+  {id:'ammonizione', label:'Ammonizione', group:'disciplina'},
+  {id:'espulsione',  label:'Espulsione',  group:'disciplina'},
 
-  {id:'ammonizione', label:'Ammonizione',  group:'disciplina'},
-  {id:'fallo',        label:'Fallo',        group:'disciplina'},
-  {id:'gol',           label:'Gol',          group:'disciplina'},
-  {id:'espulsione',    label:'Espulsione',   group:'disciplina'},
-  {id:'sostituzione',  label:'Sostituzione', group:'disciplina'},
+  {id:'gol',         label:'Gol',         group:'gol'},
+
+  {id:'sostituzione', label:'Sostituzione', group:'sostituzione'},
 ];
-const GROUP_CLASS = {tiri:'grp-tiri', inattive:'grp-inattive', duelli:'grp-duelli', disciplina:'grp-disciplina'};
+const GROUP_CLASS = {tiri:'grp-tiri', inattive:'grp-inattive', disciplina:'grp-disciplina', gol:'grp-gol', sostituzione:'grp-sostituzione'};
+
+const STORE_KEY = 'monselice_match_v1';
 
 let events = [];
 let eventIdSeq = 1;
@@ -265,21 +273,57 @@ function currentSeconds(){
 function tick(){ document.getElementById('clock').textContent = fmt(currentSeconds()); requestAnimationFrame(tick); }
 requestAnimationFrame(tick);
 
+/* ---------- Persistenza localStorage ---------- */
+function saveState(){
+  try{
+    localStorage.setItem(STORE_KEY, JSON.stringify({
+      events, eventIdSeq, half, running, startTs, elapsedByHalf,
+      opp: document.getElementById('oppName').value,
+      date: document.getElementById('matchDate').value
+    }));
+  }catch(e){ /* storage pieno o non disponibile: si continua in memoria */ }
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(!raw) return;
+    const s = JSON.parse(raw);
+    events = Array.isArray(s.events) ? s.events : [];
+    eventIdSeq = s.eventIdSeq || (events.reduce((m,e)=>Math.max(m,e.id),0)+1);
+    half = s.half || 1;
+    elapsedByHalf = s.elapsedByHalf || {1:0, 2:0};
+    running = !!s.running;
+    startTs = s.startTs || null;
+    if(typeof s.opp === 'string') document.getElementById('oppName').value = s.opp;
+    if(typeof s.date === 'string') document.getElementById('matchDate').value = s.date;
+    document.getElementById('halfLabel').textContent = half === 1 ? '1° tempo' : '2° tempo';
+    document.getElementById('clock').classList.toggle('running', running);
+    document.getElementById('toggleBtn').textContent = running ? 'Pausa' : 'Avvia';
+  }catch(e){ /* dato corrotto: si riparte puliti */ }
+}
+
 function toggleClock(){
   if(running){ elapsedByHalf[half] = currentSeconds(); running = false; }
   else { startTs = Date.now(); running = true; }
   document.getElementById('clock').classList.toggle('running', running);
   document.getElementById('toggleBtn').textContent = running ? 'Pausa' : 'Avvia';
+  saveState();
 }
 function switchHalf(){
   if(running) toggleClock();
   half = half === 1 ? 2 : 1;
   document.getElementById('halfLabel').textContent = half === 1 ? '1° tempo' : '2° tempo';
+  saveState();
 }
 
 function renderTiles(){
-  const groups = { tiri:document.getElementById('grpTiri'), inattive:document.getElementById('grpInattive'),
-                    duelli:document.getElementById('grpDuelli'), disciplina:document.getElementById('grpDisciplina') };
+  const groups = {
+    tiri:document.getElementById('grpTiri'),
+    inattive:document.getElementById('grpInattive'),
+    disciplina:document.getElementById('grpDisciplina'),
+    gol:document.getElementById('grpGol'),
+    sostituzione:document.getElementById('grpSostituzione')
+  };
   Object.values(groups).forEach(g => g.innerHTML = '');
   categories.forEach(cat => {
     const t = document.createElement('div');
@@ -287,16 +331,16 @@ function renderTiles(){
     t.innerHTML = `
       <div class="tile2-label">${cat.label}</div>
       <div class="tile2-halves">
-        <div class="half casa" data-cat="${cat.id}" data-team="casa">
+        <div class="teamhalf casa" data-cat="${cat.id}" data-team="casa">
           <span class="halflbl lbl-casa">Nostra squadra</span><span class="halfcnt" id="cnt-${cat.id}-casa">0</span>
         </div>
-        <div class="half ospiti" data-cat="${cat.id}" data-team="ospiti">
+        <div class="teamhalf ospiti" data-cat="${cat.id}" data-team="ospiti">
           <span class="halflbl lbl-ospiti">Avversario</span><span class="halfcnt" id="cnt-${cat.id}-ospiti">0</span>
         </div>
       </div>`;
     groups[cat.group].appendChild(t);
   });
-  document.querySelectorAll('.half').forEach(h => {
+  document.querySelectorAll('.teamhalf').forEach(h => {
     h.onclick = () => logEvent(h.dataset.cat, h.dataset.team);
   });
   updateTeamLabels();
@@ -317,6 +361,7 @@ function updateTeamLabels(){
   const lc = document.getElementById('legendCasa'), lo = document.getElementById('legendOspiti');
   if(lc) lc.textContent = info.team + ' — tocca a sinistra';
   if(lo) lo.textContent = info.opp + ' — tocca a destra';
+  saveState();
 }
 
 function logEvent(catId, team){
@@ -325,6 +370,7 @@ function logEvent(catId, team){
   events.push(ev);
   renderCounts();
   updateLastEvent(ev);
+  saveState();
   if(navigator.vibrate) navigator.vibrate(15);
 }
 function updateLastEvent(ev){
@@ -344,17 +390,20 @@ function undoFromLast(){
   events = events.filter(e => e.id !== lastEventId);
   renderCounts();
   clearLastEvent();
+  saveState();
 }
 function undo(){
   const removed = events.pop();
   renderCounts();
   if(removed && removed.id === lastEventId) clearLastEvent();
+  saveState();
 }
 function clearAll(){
   if(!confirm('Azzerare tutti i dati registrati?')) return;
   events = [];
   renderCounts();
   clearLastEvent();
+  saveState();
   closeSheet();
 }
 
@@ -380,6 +429,16 @@ function matchInfo(){
   return {team, opp, date};
 }
 function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'na'; }
+function dateForFile(){
+  const d = document.getElementById('matchDate').value; // "AAAA-MM-GG" oppure ""
+  if(!d) return 'senza-data';
+  const [y, m, day] = d.split('-');
+  return `${parseInt(day,10)}-${parseInt(m,10)}-${y}`; // gg-mm-aaaa senza zeri iniziali
+}
+function baseFileName(){
+  const info = matchInfo();
+  return `${slug(info.team)}-vs-${slug(info.opp)}-${dateForFile()}`;
+}
 
 function exportCSV(){
   const info = matchInfo();
@@ -393,7 +452,46 @@ function exportCSV(){
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = `match-events-${slug(info.team)}-vs-${slug(info.opp)}-${info.date||'senza-data'}.csv`; a.click();
+  a.href = url; a.download = baseFileName()+'.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportExcel(){
+  const info = matchInfo();
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const sheetName = (info.team + ' vs ' + info.opp).slice(0,31);
+
+  let body = '';
+  body += `<tr><td style="font-weight:bold">Squadra</td><td>${esc(info.team)}</td></tr>`;
+  body += `<tr><td style="font-weight:bold">Avversario</td><td>${esc(info.opp)}</td></tr>`;
+  body += `<tr><td style="font-weight:bold">Data</td><td>${esc(info.date)}</td></tr>`;
+  body += `<tr><td></td></tr>`;
+  body += `<tr><th>Avvenimento</th><th>${esc(info.team)}</th><th>${esc(info.opp)}</th></tr>`;
+  categories.forEach(c => {
+    body += `<tr><td>${esc(c.label)}</td><td>${countOf(c.id,'casa')}</td><td>${countOf(c.id,'ospiti')}</td></tr>`;
+  });
+  body += `<tr><td style="font-weight:bold">Eventi totali</td><td style="font-weight:bold">${events.filter(e=>e.team==='casa').length}</td><td style="font-weight:bold">${events.filter(e=>e.team==='ospiti').length}</td></tr>`;
+  body += `<tr><td></td></tr><tr><td></td></tr>`;
+  body += `<tr><th>Tempo</th><th>Semitempo</th><th>Squadra</th><th>Categoria</th><th>Gruppo</th></tr>`;
+  events.slice().sort((a,b)=> (a.half-b.half) || (a.time-b.time)).forEach(e => {
+    body += `<tr><td style="mso-number-format:'\\@'">${fmt(e.time)}</td><td>${e.half}T</td><td>${esc(e.team==='casa'?info.team:info.opp)}</td><td>${esc(e.label)}</td><td>${esc(e.group)}</td></tr>`;
+  });
+
+  const html =
+    '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">' +
+    '<head><meta charset="UTF-8">' +
+    '<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>' +
+    '<x:Name>' + esc(sheetName) + '</x:Name>' +
+    '<x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>' +
+    '</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->' +
+    '<style>td,th{border:1px solid #999;padding:4px 8px;font-family:Calibri,Arial,sans-serif;font-size:11pt;}' +
+    'th{background:#1D6F42;color:#fff;font-weight:bold;text-align:center;}</style>' +
+    '</head><body><table>' + body + '</table></body></html>';
+
+  const blob = new Blob(['\ufeff'+html], {type:'application/vnd.ms-excel;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = baseFileName()+'.xls'; a.click();
   URL.revokeObjectURL(url);
 }
 
@@ -412,6 +510,11 @@ function exportPDF(){
         ${rows}
       </table>
     </div>`;
+  // Il browser usa il titolo della pagina come nome file suggerito nel "Salva come PDF".
+  const prevTitle = document.title;
+  document.title = baseFileName();
+  const restore = () => { document.title = prevTitle; window.removeEventListener('afterprint', restore); };
+  window.addEventListener('afterprint', restore);
   window.print();
 }
 
@@ -421,9 +524,10 @@ function loadDemo(){
   eventIdSeq = 1;
   const demo = {
     tiro_d_in:[3,1], tiro_d_out:[2,2], tiro_f_in:[1,0], tiro_f_out:[4,3],
-    corner:[5,2], punizione:[2,1], fuorigioco:[3,2], rigore:[1,0],
-    palla_riconquistata:[14,9], palla_persa:[11,12], duello_vinto:[9,6], duello_perso:[7,8],
-    ammonizione:[2,3], fallo:[8,10], gol:[2,1], espulsione:[0,0], sostituzione:[3,3]
+    corner:[5,2], punizione:[2,1], fuorigioco:[3,2], rigore:[1,0], rimessa_dal_fondo:[6,7],
+    fallo:[8,10], ammonizione:[2,3], espulsione:[0,0],
+    gol:[2,1],
+    sostituzione:[3,3]
   };
   Object.entries(demo).forEach(([id, [nc, no]]) => {
     const cat = categories.find(c => c.id === id);
@@ -431,9 +535,11 @@ function loadDemo(){
     for(let i=0;i<no;i++) events.push({ id:eventIdSeq++, catId:cat.id, label:cat.label, group:cat.group, team:'ospiti', half: Math.random()<0.5?1:2, time: Math.floor(Math.random()*2700) });
   });
   renderCounts();
+  saveState();
   openSheet();
 }
 
+loadState();
 renderTiles();
 renderCounts();
 </script>
