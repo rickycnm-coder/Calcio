@@ -9,6 +9,7 @@
 <title>Riccardo Moro's Match Analysis — Giocatori</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#10120d; --bg-panel:#171a13; --bg-elevated:#1f2318; --bg-elevated-2:#262b1c;
@@ -16,11 +17,18 @@
     --text:#EDEFE8; --text-dim:#9BA294; --text-faint:#5C6154;
     --gold:#D9C15C; --gold-dim:#4A4324; --gold-bg:rgba(217,193,92,0.08);
     --purple:#9B8AC4; --purple-dim:#382F51; --purple-bg:rgba(155,138,196,0.08);
-    --green:#6FCF57; --red:#E27070;
+    --green:#6FCF57; --red:#E27070; --red-bg:rgba(226,112,112,0.08);
     --font-display:'Oswald', sans-serif; --font-body:'Inter', sans-serif; --font-mono:'IBM Plex Mono', monospace;
   }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body{ margin:0; background:var(--bg); color:var(--text); font-family:var(--font-body); overflow-x:hidden; }
+  .statuscell select{
+    font-family:var(--font-body); font-weight:600; font-size:12px; background:var(--bg-elevated); color:var(--text);
+    border:1px solid var(--line-strong); border-radius:6px; padding:6px 8px; margin:6px 0; width:120px;
+  }
+  .statuscell select.status-disponibile{ color:var(--green); border-color:var(--green); }
+  .statuscell select.status-indisponibile{ color:var(--red); border-color:var(--red); }
+  .statuscell select.status-tribuna{ color:var(--text-dim); }
 
   .topbar{
     position:sticky; top:0; z-index:50; background:var(--bg); border-bottom:1px solid var(--line);
@@ -49,6 +57,8 @@
   thead th.playercol{ position:sticky; left:0; top:0; z-index:35; text-align:left; padding-left:16px; background:var(--bg-panel); min-width:220px; }
   thead th.g-passaggi{ background:var(--gold-bg); color:var(--gold); }
   thead th.g-duelli{ background:var(--purple-bg); color:var(--purple); }
+  thead th.g-falli{ background:var(--red-bg); color:var(--red); }
+  thead th.statuscol{ min-width:130px; }
   thead th.timecol{ min-width:96px; }
   thead th .sub{ display:block; font-family:var(--font-body); font-weight:500; font-size:9.5px; text-transform:none; color:var(--text-dim); margin-top:1px; }
 
@@ -79,6 +89,7 @@
   .tapcell.has-count{ color:var(--text); }
   td.g-passaggi{ background:rgba(217,193,92,0.04); }
   td.g-duelli{ background:rgba(155,138,196,0.04); }
+  td.g-falli{ background:rgba(226,112,112,0.04); }
   .tapcell.pos.has-count{ color:var(--green); }
   .tapcell.neg.has-count{ color:var(--red); }
 
@@ -117,7 +128,8 @@
   @media print{
     body *{ visibility:hidden; }
     #printHeader, #printHeader *{ visibility:visible; }
-    #printHeader{ display:block !important; position:absolute; left:0; top:0; width:100%; }
+    #printHeader{ display:block !important; position:absolute; left:0; top:0; width:100%; background:#fff; }
+    html, body{ background:#fff !important; }
     .print-doc{ font-family:'Inter', sans-serif; color:#111; }
     .print-doc h1{ font-family:var(--font-display); font-size:20px; margin:0 0 2px; }
     .print-doc .sub{ color:#555; font-size:12px; margin:0 0 14px; }
@@ -159,7 +171,10 @@
         <th class="g-duelli">Palla<span class="sub">persa</span></th>
         <th class="g-duelli">Duello<span class="sub">vinto</span></th>
         <th class="g-duelli">Duello<span class="sub">perso</span></th>
+        <th class="g-falli">Fallo<span class="sub">fatto</span></th>
+        <th class="g-falli">Fallo<span class="sub">subito</span></th>
         <th class="timecol">Tempo<span class="sub">minuti in campo</span></th>
+        <th class="statuscol">Status</th>
       </tr>
     </thead>
     <tbody id="tbody"></tbody>
@@ -175,6 +190,7 @@
   <div class="sheet-head">
     <h2>Riepilogo giocatori</h2>
     <button onclick="exportCSV()">Esporta CSV</button>
+    <button onclick="exportExcel()">Esporta Excel</button>
     <button onclick="exportPDF()">Esporta PDF</button>
     <button onclick="closeSummary()">Chiudi</button>
   </div>
@@ -191,15 +207,17 @@ const CATS = [
   {id:'persa',    label:'Palla persa',         group:'g-duelli',   sign:'neg'},
   {id:'duello_v', label:'Duello vinto',        group:'g-duelli',   sign:'pos'},
   {id:'duello_p', label:'Duello perso',        group:'g-duelli',   sign:'neg'},
+  {id:'fallo_fatto',  label:'Fallo fatto',   group:'g-falli', sign:'neg'},
+  {id:'fallo_subito', label:'Fallo subito',  group:'g-falli', sign:'pos'},
 ];
 
 const DEFAULT_ROSTER = [
   'BALDAN MATTEO','BALLARIN TOMMASO','BARATTO ALESSIO','BARBIERO MARCO','BELLON ALBERTO',
-  'BERGAMASCO RICCARDO','BERTUOLO NICOLÒ','BOSCO GIOVANNI','CAPOZZI TOMMASO','COPPOLA ALESSANDRO',
+  'CAPOZZI TOMMASO','COPPOLA ALESSANDRO',
   'DI GIUSEPPE CHRISTIAN','DONGMO FERNAND','GIORDANI LORIS','GJOKA KEVIN','GUARNIERI GIANFILIPPO',
   'JAMMEH ANFAL','LACERTI ALESSANDRO','MONTECCHIO MATTEO','OPREAN COSMIN','PITTARELLO GIOVANNI',
   'SABBION GIOVANNI','SEGALINA FILIPPO','TESSARI ANDREA','TOGNON ALESSANDRO','VERONESE ALESSANDRO',
-  'YMERAJ DANIEL','IPPOLITO LEONARDO','ALIEU BAYIE','EMMANUEL ABRAHAM',"BAU'",'SAITI'
+  'YMERAJ DANIEL'
 ];
 
 let players = DEFAULT_ROSTER.map((name, i) => ({ id: 'p'+i, name }));
@@ -207,6 +225,8 @@ let nextPlayerId = players.length;
 let taps = [];
 let tapIdSeq = 1;
 let timeByPlayer = {};
+let statusByPlayer = {};
+const STATUS_OPTIONS = ['disponibile','indisponibile','tribuna'];
 
 function countOf(playerId, catId){ return taps.filter(t => t.playerId===playerId && t.catId===catId).length; }
 
@@ -223,7 +243,7 @@ function renderRows(){
     if(idx === 11){
       const tr = document.createElement('tr');
       tr.className = 'benchdivider';
-      tr.innerHTML = `<td colspan="8"><div class="line">Panchina</div></td>`;
+      tr.innerHTML = `<td colspan="11"><div class="line">Panchina</div></td>`;
       tbody.appendChild(tr);
     }
     const tr = document.createElement('tr');
@@ -240,6 +260,10 @@ function renderRows(){
       cellsHtml += `<td class="${cat.group}"><div class="tapcell ${cat.sign}" data-pid="${p.id}" data-cat="${cat.id}" id="cell-${p.id}-${cat.id}">0</div></td>`;
     });
     cellsHtml += `<td class="timecell"><input type="number" min="0" value="${timeByPlayer[p.id]||0}" onchange="setTime('${p.id}', this.value)"></td>`;
+    const st = statusByPlayer[p.id] || 'disponibile';
+    cellsHtml += `<td class="statuscell"><select class="status-${st}" onchange="setStatus('${p.id}', this.value)">
+      ${STATUS_OPTIONS.map(o => `<option value="${o}" ${o===st?'selected':''}>${o.charAt(0).toUpperCase()+o.slice(1)}</option>`).join('')}
+    </select></td>`;
     tr.innerHTML = cellsHtml;
     tbody.appendChild(tr);
   });
@@ -248,6 +272,10 @@ function renderRows(){
   });
   attachDrag();
   renderCounts();
+}
+function setStatus(pid, val){
+  statusByPlayer[pid] = val;
+  renderRows();
 }
 function renderCounts(){
   players.forEach(p => {
@@ -274,6 +302,7 @@ function removePlayer(pid){
   players = players.filter(p => p.id !== pid);
   taps = taps.filter(t => t.playerId !== pid);
   delete timeByPlayer[pid];
+  delete statusByPlayer[pid];
   renderRows();
 }
 
@@ -327,9 +356,10 @@ function computeStats(p){
   const passTot = c.pass_ok + c.pass_no;
   const precPass = passTot > 0 ? (c.pass_ok/passTot*100) : null;
   const delta = c.rec - c.persa;
-  const negTot = c.pass_no + c.persa + c.duello_p;
+  const negTot = c.pass_no + c.persa + c.duello_p + c.fallo_fatto;
   const transNeg = tocchi > 0 ? (negTot/tocchi*100) : null;
-  return {c, tocchi, tempoMin, tempoSec, freq, precPass, delta, transNeg};
+  const status = statusByPlayer[p.id] || 'disponibile';
+  return {c, tocchi, tempoMin, tempoSec, freq, precPass, delta, transNeg, status};
 }
 function fmtNum(v, suffix=''){ return v===null ? '—' : (Math.round(v*10)/10)+suffix; }
 
@@ -337,7 +367,7 @@ function openSummary(){
   const table = document.getElementById('sumtable');
   let html = `<tr>
     <th>N.</th><th>Giocatore</th><th>Pass. giusti</th><th>Pass. sbagliati</th><th>Recuperate</th><th>Perse</th>
-    <th>Duelli vinti</th><th>Duelli persi</th><th>Tempo (min)</th>
+    <th>Duelli vinti</th><th>Duelli persi</th><th>Fallo fatto</th><th>Fallo subito</th><th>Tempo (min)</th><th>Status</th>
     <th>Tocchi</th><th>Frequenza (s/tocco)</th><th>% pass. giusti</th><th>Delta palle</th><th>Transizione neg. %</th>
   </tr>`;
   players.forEach((p, idx) => {
@@ -346,7 +376,8 @@ function openSummary(){
       <td class="computed">${idx+1}</td>
       <td>${p.name}</td>
       <td>${s.c.pass_ok}</td><td>${s.c.pass_no}</td><td>${s.c.rec}</td><td>${s.c.persa}</td>
-      <td>${s.c.duello_v}</td><td>${s.c.duello_p}</td><td>${s.tempoMin}</td>
+      <td>${s.c.duello_v}</td><td>${s.c.duello_p}</td><td>${s.c.fallo_fatto}</td><td>${s.c.fallo_subito}</td>
+      <td>${s.tempoMin}</td><td>${s.status.charAt(0).toUpperCase()+s.status.slice(1)}</td>
       <td class="computed">${s.tocchi}</td>
       <td class="computed">${fmtNum(s.freq,'s')}</td>
       <td class="computed">${fmtNum(s.precPass,'%')}</td>
@@ -370,15 +401,26 @@ function matchInfo(){
   return {team, opp, date};
 }
 function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'na'; }
+function dateDDMMYYYY(isoDate){
+  if(!isoDate) return 'senza-data';
+  const [y,m,d] = isoDate.split('-');
+  return `${d}-${m}-${y}`;
+}
+function buildFilename(){
+  const info = matchInfo();
+  return `${slug(info.team)}-${slug(info.opp)}-${dateDDMMYYYY(info.date)}-player-tagger`;
+}
 
 function exportCSV(){
   const info = matchInfo();
   const rows = [['Squadra', info.team], ['Avversario', info.opp], ['Data', info.date], []];
   rows.push(['N.','Giocatore','Passaggi giusti','Passaggi sbagliati','Palle recuperate','Palle perse',
-    'Duelli vinti','Duelli persi','Tempo (min)','Tocchi palla','Frequenza (s/tocco)','% passaggi giusti','Delta palle','Transizione negativa %']);
+    'Duelli vinti','Duelli persi','Fallo fatto','Fallo subito','Tempo (min)','Status',
+    'Tocchi palla','Frequenza (s/tocco)','% passaggi giusti','Delta palle','Transizione negativa %']);
   players.forEach((p, idx) => {
     const s = computeStats(p);
-    rows.push([idx+1, p.name, s.c.pass_ok, s.c.pass_no, s.c.rec, s.c.persa, s.c.duello_v, s.c.duello_p, s.tempoMin,
+    rows.push([idx+1, p.name, s.c.pass_ok, s.c.pass_no, s.c.rec, s.c.persa, s.c.duello_v, s.c.duello_p,
+      s.c.fallo_fatto, s.c.fallo_subito, s.tempoMin, s.status,
       s.tocchi, s.freq===null?'':Math.round(s.freq*10)/10, s.precPass===null?'':Math.round(s.precPass*10)/10,
       s.delta, s.transNeg===null?'':Math.round(s.transNeg*10)/10]);
   });
@@ -386,8 +428,31 @@ function exportCSV(){
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = `giocatori-${slug(info.team)}-vs-${slug(info.opp)}-${info.date||'senza-data'}.csv`; a.click();
+  a.href = url; a.download = `${buildFilename()}.csv`; a.click();
   URL.revokeObjectURL(url);
+}
+
+function exportExcel(){
+  const info = matchInfo();
+  const header = ['N.','Giocatore','Passaggi giusti','Passaggi sbagliati','Palle recuperate','Palle perse',
+    'Duelli vinti','Duelli persi','Fallo fatto','Fallo subito','Tempo (min)','Status',
+    'Tocchi palla','Frequenza (s/tocco)','% passaggi giusti','Delta palle','Transizione negativa %'];
+  const aoa = [
+    ['Squadra', info.team], ['Avversario', info.opp], ['Data', info.date], [],
+    header
+  ];
+  players.forEach((p, idx) => {
+    const s = computeStats(p);
+    aoa.push([idx+1, p.name, s.c.pass_ok, s.c.pass_no, s.c.rec, s.c.persa, s.c.duello_v, s.c.duello_p,
+      s.c.fallo_fatto, s.c.fallo_subito, s.tempoMin, s.status,
+      s.tocchi, s.freq===null?null:Math.round(s.freq*10)/10, s.precPass===null?null:Math.round(s.precPass*10)/10,
+      s.delta, s.transNeg===null?null:Math.round(s.transNeg*10)/10]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = header.map(h => ({wch: Math.max(10, h.length+2)}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Giocatori');
+  XLSX.writeFile(wb, `${buildFilename()}.xlsx`);
 }
 
 function exportPDF(){
@@ -398,7 +463,8 @@ function exportPDF(){
     const s = computeStats(p);
     rows += `<tr>
       <td>${idx+1}</td><td>${p.name}</td><td>${s.c.pass_ok}</td><td>${s.c.pass_no}</td><td>${s.c.rec}</td><td>${s.c.persa}</td>
-      <td>${s.c.duello_v}</td><td>${s.c.duello_p}</td><td>${s.tempoMin}</td><td>${s.tocchi}</td>
+      <td>${s.c.duello_v}</td><td>${s.c.duello_p}</td><td>${s.c.fallo_fatto}</td><td>${s.c.fallo_subito}</td>
+      <td>${s.tempoMin}</td><td>${s.status}</td><td>${s.tocchi}</td>
       <td>${fmtNum(s.freq)}</td><td>${fmtNum(s.precPass)}</td><td>${s.delta>0?'+':''}${s.delta}</td><td>${fmtNum(s.transNeg)}</td>
     </tr>`;
   });
@@ -408,11 +474,15 @@ function exportPDF(){
       <p class="sub">${dateLabel} — Rilevazione individuale giocatori</p>
       <table>
         <tr><th>N.</th><th>Giocatore</th><th>P.giusti</th><th>P.sbagliati</th><th>Recuperate</th><th>Perse</th>
-          <th>Duelli V</th><th>Duelli P</th><th>Tempo (min)</th><th>Tocchi</th><th>Freq. (s)</th><th>%Pass</th><th>Delta</th><th>Trans. neg. %</th></tr>
+          <th>Duelli V</th><th>Duelli P</th><th>Fallo F.</th><th>Fallo S.</th><th>Tempo (min)</th><th>Status</th>
+          <th>Tocchi</th><th>Freq. (s)</th><th>%Pass</th><th>Delta</th><th>Trans. neg. %</th></tr>
         ${rows}
       </table>
     </div>`;
+  const prevTitle = document.title;
+  document.title = buildFilename();
   window.print();
+  setTimeout(() => { document.title = prevTitle; }, 1000);
 }
 
 renderRows();
