@@ -157,9 +157,10 @@
     body{ background:#fff; padding-bottom:0; }
     #printHeader{ display:block !important; }
   }
-  .print-doc{ font-family:'Comfortaa', sans-serif; font-size:12pt; color:#111; position:relative; padding-top:4px; }
-  .print-logo{ position:absolute; top:0; right:0; width:110px; height:auto; object-fit:contain; }
-  .print-title{ width:100%; border-collapse:collapse; margin:0 130px 18px 0; }
+  .print-doc{ font-family:'Comfortaa', sans-serif; font-size:12pt; color:#111; }
+  .print-headrow{ display:flex; align-items:flex-start; gap:16px; margin-bottom:18px; }
+  .print-logo{ width:100px; height:auto; flex-shrink:0; object-fit:contain; }
+  .print-title{ flex:1; border-collapse:collapse; }
   .print-title td{ border:1.5px solid #111; padding:9px 14px; font-size:12pt; vertical-align:middle; }
   .print-title .lbl{ font-weight:700; text-transform:uppercase; }
   .print-title .val{ font-style:italic; font-weight:400; font-size:12pt; margin-left:6px; }
@@ -458,11 +459,13 @@ function exportPDF(){
   const rows = tabellinoRows().map(([l,ca,os]) => `<tr><td>${l}</td><td>${ca}</td><td>${os}</td></tr>`).join('');
   document.getElementById('printHeader').innerHTML = `
     <div class="print-doc">
-      <img class="print-logo" src="data:image/jpeg;base64,${LOGO_B64}">
-      <table class="print-title"><tr>
-        <td><span class="lbl">Tabellino</span><span class="val">${info.team} – ${info.opp}</span></td>
-        <td><span class="lbl">Data:</span><span class="val">${dateLabel}</span></td>
-      </tr></table>
+      <div class="print-headrow">
+        <table class="print-title"><tr>
+          <td><span class="lbl">Tabellino</span><span class="val">${info.team} – ${info.opp}</span></td>
+          <td><span class="lbl">Data:</span><span class="val">${dateLabel}</span></td>
+        </tr></table>
+        <img class="print-logo" src="data:image/jpeg;base64,${LOGO_B64}">
+      </div>
       <table class="print-stats">
         <tr><th>Squadre</th><th>${info.team.toUpperCase()}</th><th>${info.opp.toUpperCase()}</th></tr>
         ${rows}
