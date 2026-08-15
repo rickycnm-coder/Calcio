@@ -46,6 +46,8 @@
   }
   .topbtn.start{ background:#2E4A24; color:#DFF7D6; margin-left:auto; }
   .topbtn.half{ background:var(--bg-elevated); color:var(--text); }
+  .topbtn.half.flash{ animation: flashHalf .4s ease; }
+  @keyframes flashHalf{ 0%{ background:#6FCF57; color:#0c1408; } 100%{ background:var(--bg-elevated); color:var(--text); } }
 
   .matchinfo{
     background:var(--bg); border-bottom:1px solid var(--line); padding:8px 14px 10px;
@@ -92,13 +94,13 @@
     text-align:center; padding:7px 8px; text-transform:uppercase; letter-spacing:.02em;
   }
   .tile2-halves{ display:flex; }
-  .half{
+  .teamtap{
     flex:1; display:flex; align-items:center; justify-content:center; gap:8px;
     padding:14px 8px; cursor:pointer; touch-action:manipulation; min-height:56px;
   }
-  .half:active{ filter:brightness(0.92); }
-  .half.casa{ background:var(--casa-bg); color:var(--casa-text); border-right:1.5px solid var(--casa-border); }
-  .half.ospiti{ background:var(--ospiti-bg); color:var(--ospiti-text); }
+  .teamtap:active{ filter:brightness(0.92); }
+  .teamtap.casa{ background:var(--casa-bg); color:var(--casa-text); border-right:1.5px solid var(--casa-border); }
+  .teamtap.ospiti{ background:var(--ospiti-bg); color:var(--ospiti-text); }
   .halflbl{ font-family:var(--font-mono); font-size:10px; letter-spacing:.06em; opacity:0.7; text-transform:uppercase; }
   .halfcnt{ font-family:var(--font-mono); font-size:22px; font-weight:700; min-width:22px; text-align:center; }
 
@@ -293,6 +295,10 @@ function switchHalf(){
   if(running) toggleClock();
   half = half === 1 ? 2 : 1;
   document.getElementById('halfLabel').textContent = half === 1 ? '1° tempo' : '2° tempo';
+  const btn = document.querySelector('.topbtn.half');
+  btn.classList.remove('flash');
+  void btn.offsetWidth; // restart animation if tapped twice quickly
+  btn.classList.add('flash');
 }
 
 function renderTiles(){
@@ -306,16 +312,16 @@ function renderTiles(){
     t.innerHTML = `
       <div class="tile2-label">${cat.label}</div>
       <div class="tile2-halves">
-        <div class="half casa" data-cat="${cat.id}" data-team="casa">
+        <div class="teamtap casa" data-cat="${cat.id}" data-team="casa">
           <span class="halflbl lbl-casa">Nostra squadra</span><span class="halfcnt" id="cnt-${cat.id}-casa">0</span>
         </div>
-        <div class="half ospiti" data-cat="${cat.id}" data-team="ospiti">
+        <div class="teamtap ospiti" data-cat="${cat.id}" data-team="ospiti">
           <span class="halflbl lbl-ospiti">Avversario</span><span class="halfcnt" id="cnt-${cat.id}-ospiti">0</span>
         </div>
       </div>`;
     groups[cat.group].appendChild(t);
   });
-  document.querySelectorAll('.half').forEach(h => {
+  document.querySelectorAll('.teamtap').forEach(h => {
     h.onclick = () => logEvent(h.dataset.cat, h.dataset.team);
   });
   updateTeamLabels();
