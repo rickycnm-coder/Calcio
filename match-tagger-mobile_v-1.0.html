@@ -9,7 +9,10 @@
 <meta name="theme-color" content="#10120d">
 <title>Riccardo Moro's Match Analysis — Campo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Inter:wght@500;600;700&family=IBM+Plex+Mono:wght@600&family=Comfortaa:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Inter:wght@500;600;700&family=IBM+Plex+Mono:wght@600&family=Comfortaa:wght@400;600;700&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'" onerror="this.onerror=null;">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Inter:wght@500;600;700&family=IBM+Plex+Mono:wght@600&family=Comfortaa:wght@400;600;700&display=swap" rel="stylesheet"></noscript>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
   :root{
     --bg:#10120d; --bg-panel:#171a13; --bg-elevated:#1f2318;
@@ -236,6 +239,7 @@
   </div>
   <table class="sumtable" id="sumtable"></table>
   <button class="exportbtn" onclick="exportCSV()">Esporta CSV</button>
+  <button class="exportbtn" style="background:#4A3F1E; color:#F5EDC8;" onclick="exportExcel()">Esporta Excel</button>
   <button class="exportbtn" style="background:#254257; color:#DCEEFA;" onclick="exportPDF()">Esporta PDF</button>
   <button class="danger" onclick="clearAll()">Azzera tutti i dati</button>
   <button class="close" onclick="loadDemo()" style="margin-top:8px; background:none; color:var(--text-dim); font-weight:500; font-size:12px;">Carica dati di esempio (solo per anteprima)</button>
@@ -405,6 +409,15 @@ function matchInfo(){
   return {team, opp, date};
 }
 function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'na'; }
+function dateDDMMYYYY(isoDate){
+  if(!isoDate) return 'senza-data';
+  const [y,m,d] = isoDate.split('-');
+  return `${d}-${m}-${y}`;
+}
+function buildFilename(){
+  const info = matchInfo();
+  return `${slug(info.team)}-${slug(info.opp)}-${dateDDMMYYYY(info.date)}-match-tagger`;
+}
 
 function exportCSV(){
   const info = matchInfo();
@@ -478,6 +491,33 @@ function exportPDF(){
       </table>
     </div>`;
   window.print();
+}
+
+function exportExcel(){
+  if(typeof XLSX === 'undefined'){
+    alert('La funzione Excel richiede una connessione internet almeno la prima volta (deve scaricare una libreria). Nel frattempo puoi usare CSV o PDF, che funzionano sempre anche offline. Se hai connessione, riprova tra qualche secondo.');
+    return;
+  }
+  const info = matchInfo();
+  const tabellino = [
+    ['TABELLINO', info.team + ' – ' + info.opp],
+    ['DATA', info.date],
+    [],
+    ['SQUADRE', info.team.toUpperCase(), info.opp.toUpperCase()],
+    ...tabellinoRows()
+  ];
+  const eventi = [['Tempo di gioco','Semitempo','Squadra','Categoria','Gruppo']];
+  events.forEach(e => eventi.push([fmt(e.time), e.half+'T', e.team==='casa'?info.team:info.opp, e.label, e.group]));
+
+  const wb = XLSX.utils.book_new();
+  const wsTab = XLSX.utils.aoa_to_sheet(tabellino);
+  wsTab['!cols'] = [{wch:28},{wch:16},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, wsTab, 'Tabellino');
+  const wsEv = XLSX.utils.aoa_to_sheet(eventi);
+  wsEv['!cols'] = [{wch:10},{wch:9},{wch:16},{wch:26},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, wsEv, 'Eventi');
+
+  XLSX.writeFile(wb, `${buildFilename()}.xlsx`);
 }
 
 function loadDemo(){
