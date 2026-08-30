@@ -388,7 +388,8 @@ function clearAll(){
 }
 
 function openSheet(){
-  let html = `<tr><th>Avvenimento</th><th>Casa</th><th>Ospiti</th></tr>`;
+  const info = matchInfo();
+  let html = `<tr><th>Avvenimento</th><th>${info.team}</th><th>${info.opp}</th></tr>`;
   categories.forEach(c => {
     html += `<tr><td>${c.label}</td><td>${countOf(c.id,'casa')}</td><td>${countOf(c.id,'ospiti')}</td></tr>`;
   });
