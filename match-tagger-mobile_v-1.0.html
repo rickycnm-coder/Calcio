@@ -51,6 +51,27 @@
   .topbtn.half{ background:var(--bg-elevated); color:var(--text); }
   .topbtn.half.flash{ animation: flashHalf .4s ease; }
   @keyframes flashHalf{ 0%{ background:#6FCF57; color:#0c1408; } 100%{ background:var(--bg-elevated); color:var(--text); } }
+  .topbtn.correction{ background:var(--bg-elevated); color:var(--text-dim); }
+  .topbtn.correction.active{ background:#B23A3A; color:#fff; }
+
+  .correctionBanner{
+    display:none; background:repeating-linear-gradient(45deg,#B23A3A,#B23A3A 12px,#8f2c2c 12px,#8f2c2c 24px);
+    color:#fff; font-weight:700; text-align:center; padding:9px 12px; font-size:12px;
+    animation: pulseBg 1s infinite alternate;
+  }
+  body.correction-mode .correctionBanner{ display:block; }
+  @keyframes pulseBg{ from{ opacity:1; } to{ opacity:0.7; } }
+
+  .correction-overlay{
+    display:none; position:fixed; inset:0; z-index:99; pointer-events:none;
+    border:7px solid #E27070; box-sizing:border-box; animation: pulseBorder 0.9s infinite alternate;
+  }
+  body.correction-mode .correction-overlay{ display:block; }
+  @keyframes pulseBorder{ from{ border-color:#E27070; } to{ border-color:#F5C542; } }
+
+  body.correction-mode .bottombar{ border-top-color:#E27070; border-top-width:2px; }
+  body.correction-mode .undobtn{ opacity:0.3; pointer-events:none; }
+  body.correction-mode .lastevent b{ color:#F5A0A0; }
 
   .matchinfo{
     background:var(--bg); border-bottom:1px solid var(--line); padding:8px 14px 10px;
@@ -158,19 +179,19 @@
   .sheet .exportbtn{ width:100%; padding:13px; border-radius:10px; background:#2E4A24; color:#DFF7D6; border:none; font-weight:700; font-family:var(--font-body); margin-bottom:8px; }
 
   @media print{
-    .topbar, .matchinfo, .legend, .section, .bottombar, .sheet-backdrop, .sheet{ display:none !important; }
+    .topbar, .matchinfo, .legend, .section, .bottombar, .sheet-backdrop, .sheet, .correctionBanner, .correction-overlay{ display:none !important; }
     body{ background:#fff; padding-bottom:0; }
     #printHeader{ display:block !important; }
   }
-  .print-doc{ font-family:'Comfortaa', sans-serif; font-size:12pt; color:#111; }
+  .print-doc{ font-family:'Comfortaa', sans-serif; font-size:14pt; color:#111; }
   .print-headrow{ display:flex; align-items:flex-start; gap:16px; margin-bottom:18px; }
   .print-logo{ width:100px; height:auto; flex-shrink:0; object-fit:contain; }
   .print-title{ flex:1; border-collapse:collapse; }
-  .print-title td{ border:1.5px solid #111; padding:9px 14px; font-size:12pt; vertical-align:middle; }
+  .print-title td{ border:0.75px solid #333; padding:9px 14px; font-size:14pt; vertical-align:middle; }
   .print-title .lbl{ font-weight:700; text-transform:uppercase; }
-  .print-title .val{ font-style:italic; font-weight:400; font-size:12pt; margin-left:6px; }
+  .print-title .val{ font-style:italic; font-weight:400; font-size:14pt; margin-left:6px; }
   .print-stats{ width:100%; max-width:680px; border-collapse:collapse; }
-  .print-stats th, .print-stats td{ border:1.5px solid #111; padding:6px 12px; font-size:12pt; }
+  .print-stats th, .print-stats td{ border:0.75px solid #333; padding:6px 12px; font-size:14pt; }
   .print-stats th{ text-transform:uppercase; font-weight:700; text-align:center; }
   .print-stats td:first-child{ text-transform:uppercase; }
   .print-stats td:not(:first-child){ text-align:center; font-weight:600; width:130px; }
@@ -186,7 +207,10 @@
   <div class="half" id="halfLabel">1° tempo</div>
   <button class="topbtn half" onclick="switchHalf()">Cambia tempo</button>
   <button class="topbtn start" id="toggleBtn" onclick="toggleClock()">Avvia</button>
+  <button class="topbtn correction" id="correctionBtn" onclick="toggleCorrection()">✏️ Correggi</button>
 </div>
+
+<div class="correctionBanner" id="correctionBanner">⚠️ MODALITÀ CORREZIONE ATTIVA — i tocchi rimuovono l'ultimo evento di quel tipo, invece di aggiungerne uno nuovo</div>
 
 <div class="matchinfo">
   <span class="fixedteam">Monselice</span>
@@ -199,6 +223,8 @@
   <span><i class="i-casa"></i> <span id="legendCasa">Nostra squadra — tocca a sinistra</span></span>
   <span><i class="i-ospiti"></i> <span id="legendOspiti">Avversario — tocca a destra</span></span>
 </div>
+
+<div class="correction-overlay" id="correctionOverlay"></div>
 
 <div class="section">
   <p class="section-title"><span class="dot" style="background:var(--green)"></span>Tiri</p>
@@ -220,7 +246,7 @@
 <div class="bottombar">
   <div class="lastevent" id="lastevent">
     <span id="lasteventText">Nessun evento registrato ancora.</span>
-    <button id="lasteventUndo" onclick="undoFromLast()" style="display:none;">ANNULLA</button>
+    <button id="lasteventUndo" onclick="lastEventUndoClick()" style="display:none;">ANNULLA</button>
   </div>
   <div class="bottomrow">
     <button class="undobtn" onclick="undo()">↩ ANNULLA ULTIMO</button>
@@ -274,6 +300,23 @@ let eventIdSeq = 1;
 let half = 1, running = false, startTs = null;
 let elapsedByHalf = {1:0, 2:0};
 let lastEventId = null;
+let correctionMode = false;
+let lastRemoved = null;
+
+function toggleCorrection(){
+  correctionMode = !correctionMode;
+  document.body.classList.toggle('correction-mode', correctionMode);
+  const btn = document.getElementById('correctionBtn');
+  btn.classList.toggle('active', correctionMode);
+  btn.textContent = correctionMode ? '✕ Esci da Correggi' : '✏️ Correggi';
+  lastRemoved = null;
+  if(correctionMode){
+    document.getElementById('lasteventText').textContent = 'Tocca il riquadro e il lato dell\'evento sbagliato per rimuoverlo.';
+    document.getElementById('lasteventUndo').style.display = 'none';
+  } else {
+    clearLastEvent();
+  }
+}
 
 function fmt(sec){
   sec = Math.max(0, Math.round(sec));
@@ -350,11 +393,46 @@ function updateTeamLabels(){
 
 function logEvent(catId, team){
   const cat = categories.find(c => c.id === catId);
+  if(correctionMode){
+    removeLastOfType(cat, team);
+    return;
+  }
   const ev = { id:eventIdSeq++, catId:cat.id, label:cat.label, group:cat.group, team, half, time:currentSeconds() };
   events.push(ev);
   renderCounts();
   updateLastEvent(ev);
   if(navigator.vibrate) navigator.vibrate(15);
+}
+function removeLastOfType(cat, team){
+  let idx = -1;
+  for(let i=events.length-1; i>=0; i--){
+    if(events[i].catId === cat.id && events[i].team === team){ idx = i; break; }
+  }
+  const info = matchInfo();
+  const teamLabel = team === 'casa' ? info.team : info.opp;
+  if(idx === -1){
+    document.getElementById('lasteventText').innerHTML = `<b>Nessun evento da rimuovere</b> — ${cat.label}, ${teamLabel}`;
+    document.getElementById('lasteventUndo').style.display = 'none';
+    if(navigator.vibrate) navigator.vibrate([10,40,10]);
+    return;
+  }
+  const removed = events.splice(idx,1)[0];
+  lastRemoved = removed;
+  renderCounts();
+  document.getElementById('lasteventText').innerHTML = `<b>✕ Rimosso: ${removed.label}</b> — ${teamLabel}, ${removed.half}T ${fmt(removed.time)}`;
+  document.getElementById('lasteventUndo').style.display = 'inline-block';
+  if(navigator.vibrate) navigator.vibrate(25);
+}
+function undoRemoval(){
+  if(!lastRemoved) return;
+  events.push(lastRemoved);
+  lastRemoved = null;
+  renderCounts();
+  document.getElementById('lasteventText').textContent = 'Tocca il riquadro e il lato dell\'evento sbagliato per rimuoverlo.';
+  document.getElementById('lasteventUndo').style.display = 'none';
+}
+function lastEventUndoClick(){
+  if(correctionMode) undoRemoval(); else undoFromLast();
 }
 function updateLastEvent(ev){
   lastEventId = ev.id;
@@ -375,6 +453,7 @@ function undoFromLast(){
   clearLastEvent();
 }
 function undo(){
+  if(correctionMode) return;
   const removed = events.pop();
   renderCounts();
   if(removed && removed.id === lastEventId) clearLastEvent();
